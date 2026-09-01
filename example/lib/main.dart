@@ -36,6 +36,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
         title: 'Alice Johnson',
         snippet: 'North Peak • Travel Blogger',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
+        imageSize: 60,
+        imageRadius: 30,
         color: Colors.pinkAccent,
       ),
       MapMarker(
@@ -46,6 +48,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
         title: 'Bob Smith',
         snippet: 'South Ridge • Software Engineer',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
+        imageSize: 60,
+        imageRadius: 30,
         color: Colors.blueAccent,
       ),
       MapMarker(
@@ -56,6 +60,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
         title: 'Priya Sharma',
         snippet: 'East Valley • Architect',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
+        imageSize: 60,
+        imageRadius: 30,
         color: Colors.amber,
       ),
       MapMarker(
@@ -66,6 +72,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
         title: 'Kenji Sato',
         snippet: 'West Canyon • Photographer',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
+        imageSize: 60,
+        imageRadius: 30,
         color: Colors.purpleAccent,
       ),
       MapMarker(
@@ -76,6 +84,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
         title: 'Carlos Garcia',
         snippet: 'Center Overlook • Adventurer',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
+        imageSize: 60,
+        imageRadius: 30,
         color: Colors.teal,
       ),
     ];
@@ -124,6 +134,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       title: 'User #$newIndex',
       snippet: 'Lat: ${lat.toStringAsFixed(4)}, Lng: ${lng.toStringAsFixed(4)}',
       imageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      imageSize: 60,
+      imageRadius: 30,
       color: Colors.deepOrangeAccent,
     );
 

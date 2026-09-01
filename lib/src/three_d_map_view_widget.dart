@@ -24,6 +24,8 @@ class ThreeDMapViewWidget extends StatefulWidget {
   final Map3DMode mapMode;
   final bool showSearchBar;
   final List<MapMarker> markers;
+  final double? imageSize;
+  final double? imageRadius;
   final MapCreatedCallback? onMapCreated;
   final VoidCallback? onMapReady;
   final MapClickCallback? onMapClick;
@@ -41,6 +43,8 @@ class ThreeDMapViewWidget extends StatefulWidget {
     this.mapMode = Map3DMode.hybrid,
     this.showSearchBar = false,
     this.markers = const [],
+    this.imageSize,
+    this.imageRadius,
     this.onMapCreated,
     this.onMapReady,
     this.onMapClick,
@@ -75,6 +79,8 @@ class _ThreeDMapViewWidgetState extends State<ThreeDMapViewWidget> {
       'range': widget.range,
       'mapMode': widget.mapMode.value,
       'showSearchBar': widget.showSearchBar,
+      if (widget.imageSize != null) 'imageSize': widget.imageSize,
+      if (widget.imageRadius != null) 'imageRadius': widget.imageRadius,
     };
 
     return PlatformViewLink(

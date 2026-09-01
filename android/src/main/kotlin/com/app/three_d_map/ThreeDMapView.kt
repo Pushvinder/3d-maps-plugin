@@ -32,13 +32,13 @@ import androidx.savedstate.findViewTreeSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.app.three_d_map.theme.Google3dMapTheme
 import com.google.android.gms.maps3d.GoogleMap3D
+import com.google.android.gms.maps3d.Popover
 import com.google.android.gms.maps3d.model.Camera
 import com.google.android.gms.maps3d.model.FlyToOptions
 import com.google.android.gms.maps3d.model.LatLngAltitude
 import com.google.android.gms.maps3d.model.Map3DMode
-import com.google.android.gms.maps3d.model.Marker
-import com.google.android.gms.maps3d.model.MarkerOptions
 import com.google.android.gms.maps3d.model.PopoverOptions
+import com.google.android.gms.maps3d.model.PopoverStyle
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -186,7 +186,7 @@ class ThreeDMapView(
     private val composeView: FlutterComposeView = FlutterComposeView(context, activity = activity)
     private var googleMap3D: GoogleMap3D? = null
     private val scope = CoroutineScope(Dispatchers.Main)
-    private val markers3DMap = mutableMapOf<String, Marker>()
+    private val popovers3DMap = mutableMapOf<String, Popover>()
 
     private val initialLat = (creationParams?.get("initialLat") as? Number)?.toDouble() ?: 38.544012
     private val initialLng = (creationParams?.get("initialLng") as? Number)?.toDouble() ?: -107.670428
@@ -194,6 +194,8 @@ class ThreeDMapView(
     private val heading = (creationParams?.get("heading") as? Number)?.toDouble() ?: 310.0
     private val tilt = (creationParams?.get("tilt") as? Number)?.toDouble() ?: 63.0
     private val range = (creationParams?.get("range") as? Number)?.toDouble() ?: 8266.0
+    private val defaultImageSize = (creationParams?.get("imageSize") as? Number)?.toDouble() ?: 60.0
+    private val defaultImageRadius = (creationParams?.get("imageRadius") as? Number)?.toDouble() ?: (defaultImageSize / 2.0)
     private val mapMode = when ((creationParams?.get("mapMode") as? Number)?.toInt()) {
         0, Map3DMode.HYBRID -> Map3DMode.HYBRID
         1, Map3DMode.SATELLITE -> Map3DMode.SATELLITE
@@ -253,17 +255,12 @@ class ThreeDMapView(
         alt: Double,
         title: String,
         imageUrl: String,
-        id: String
-    ): Marker? {
-        val markerOptions = MarkerOptions().apply {
-            position = LatLngAltitude(lat, lng, alt)
-            label = title
-            isSizePreserved = true       // Keeps marker icon constant size regardless of zoom
-            isDrawnWhenOccluded = true   // Renders marker even if terrain/buildings are in front
-            isExtruded = true            // Draws a 3D stem line from ground to marker
-        }
-        val marker = map.addMarker(markerOptions)
-
+        id: String,
+        imageSize: Double? = null,
+        imageRadius: Double? = null
+    ) {
+        val sizeDp = imageSize ?: defaultImageSize
+        val radiusDp = imageRadius ?: defaultImageRadius
         val targetUrl = if (imageUrl != "" && imageUrl != "null") imageUrl else DEFAULT_IMAGE_URL
 
         scope.launch {
@@ -273,26 +270,33 @@ class ThreeDMapView(
                 bitmap = loadBitmapFromUrl(DEFAULT_IMAGE_URL)
             }
 
-            if (bitmap != null && marker != null) {
+            if (bitmap != null) {
                 try {
-                    val popoverView = createMarkerImageView(context, bitmap)
+                    // Remove existing popover if re-adding with same id
+                    popovers3DMap[id]?.remove()
+
+                    val popoverView = createMarkerImageView(context, bitmap, sizeDp, radiusDp)
+                    val popoverStyle = PopoverStyle()
+                        .setPadding(0f)
+                        .setBackgroundColor(Color.TRANSPARENT)
+                        .setBorderRadius(0f)
+
                     val popoverOptions = PopoverOptions().apply {
                         setContent(popoverView)
-                        setPositionAnchor(marker)
+                        setPositionAnchor(LatLngAltitude(lat, lng, alt))
                         setAutoCloseEnabled(false)
                         setAutoPanEnabled(false)
+                        setPopoverStyle(popoverStyle)
                     }
-                    map.addPopover(popoverOptions)
+                    val popover = map.addPopover(popoverOptions)
+                    if (popover != null) {
+                        popovers3DMap[id] = popover
+                    }
                 } catch (e: Exception) {
                     Log.e("Map3D", "Error adding image popover to 3D map", e)
                 }
             }
         }
-
-        if (marker != null) {
-            markers3DMap[id] = marker
-        }
-        return marker
     }
 
     private suspend fun loadBitmapFromUrl(urlString: String): Bitmap? = withContext(Dispatchers.IO) {
@@ -320,32 +324,29 @@ class ThreeDMapView(
         }
     }
 
-    private fun createMarkerImageView(context: Context, bitmap: Bitmap): View {
+    private fun createMarkerImageView(
+        context: Context,
+        bitmap: Bitmap,
+        sizeDp: Double,
+        radiusDp: Double
+    ): View {
         val density = context.resources.displayMetrics.density
-        val sizePx = (120 * density).toInt()     // 120dp size
-        val paddingPx = (3 * density).toInt()    // 3dp padding
+        val sizePx = (sizeDp * density).toInt()
+        val radiusPx = (radiusDp * density).toFloat()
 
         val frameLayout = FrameLayout(context).apply {
             layoutParams = ViewGroup.LayoutParams(sizePx, sizePx)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 16 * density
-                setColor(Color.WHITE)
-                setStroke((3 * density).toInt(), Color.parseColor("#4285F4"))
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, radiusPx)
+                }
             }
-            setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
-            elevation = 12 * density
         }
 
         val imageView = ImageView(context).apply {
             setImageBitmap(bitmap)
             scaleType = ImageView.ScaleType.CENTER_CROP
-            clipToOutline = true
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setRoundRect(0, 0, view.width, view.height, 13 * density)
-                }
-            }
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -388,8 +389,10 @@ class ThreeDMapView(
                     val alt = (params["alt"] as? Number)?.toDouble() ?: 0.0
                     val title = params["title"] as? String ?: ""
                     val imageUrl = params["imageUrl"] as? String ?: ""
+                    val imageSize = (params["imageSize"] as? Number)?.toDouble()
+                    val imageRadius = (params["imageRadius"] as? Number)?.toDouble()
 
-                    addImageMarkerTo3DMap(map, lat, lng, alt, title, imageUrl, id)
+                    addImageMarkerTo3DMap(map, lat, lng, alt, title, imageUrl, id, imageSize, imageRadius)
                     result.success(id)
                 } else {
                     result.error("UNAVAILABLE", "GoogleMap3D not ready or params invalid", null)
@@ -399,8 +402,8 @@ class ThreeDMapView(
                 val map = googleMap3D
                 val id = call.argument<String>("id")
                 if (map != null && id != null) {
-                    markers3DMap[id]?.let { it.remove() }
-                    markers3DMap.remove(id)
+                    popovers3DMap[id]?.remove()
+                    popovers3DMap.remove(id)
                     result.success(true)
                 } else {
                     result.error("INVALID_ARGUMENT", "Marker id required", null)
@@ -409,8 +412,8 @@ class ThreeDMapView(
             "clearMarkers" -> {
                 val map = googleMap3D
                 if (map != null) {
-                    markers3DMap.values.forEach { it.remove() }
-                    markers3DMap.clear()
+                    popovers3DMap.values.forEach { it.remove() }
+                    popovers3DMap.clear()
                     result.success(true)
                 } else {
                     result.error("UNAVAILABLE", "GoogleMap3D not ready", null)
@@ -421,8 +424,8 @@ class ThreeDMapView(
                 @Suppress("UNCHECKED_CAST")
                 val markersList = call.argument<List<Map<String, Any?>>>("markers")
                 if (map != null && markersList != null) {
-                    markers3DMap.values.forEach { it.remove() }
-                    markers3DMap.clear()
+                    popovers3DMap.values.forEach { it.remove() }
+                    popovers3DMap.clear()
                     for (params in markersList) {
                         val id = params["id"] as? String ?: "marker_${System.currentTimeMillis()}"
                         val lat = (params["lat"] as? Number)?.toDouble() ?: 0.0
@@ -430,8 +433,10 @@ class ThreeDMapView(
                         val alt = (params["alt"] as? Number)?.toDouble() ?: 0.0
                         val title = params["title"] as? String ?: ""
                         val imageUrl = params["imageUrl"] as? String ?: ""
+                        val imageSize = (params["imageSize"] as? Number)?.toDouble()
+                        val imageRadius = (params["imageRadius"] as? Number)?.toDouble()
 
-                        addImageMarkerTo3DMap(map, lat, lng, alt, title, imageUrl, id)
+                        addImageMarkerTo3DMap(map, lat, lng, alt, title, imageUrl, id, imageSize, imageRadius)
                     }
                     result.success(true)
                 } else {

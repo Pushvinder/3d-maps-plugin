@@ -10,6 +10,8 @@ class MapMarker {
   final String? snippet;
   final String? iconAsset;
   final String? imageUrl;
+  final double? imageSize;
+  final double? imageRadius;
   final IconData? iconData;
   final Color color;
   final VoidCallback? onTap;
@@ -23,6 +25,8 @@ class MapMarker {
     this.snippet,
     this.iconAsset,
     this.imageUrl,
+    this.imageSize,
+    this.imageRadius,
     this.iconData = Icons.location_on,
     this.color = Colors.red,
     this.onTap,
@@ -38,6 +42,8 @@ class MapMarker {
       'snippet': snippet,
       'iconAsset': iconAsset,
       'imageUrl': imageUrl,
+      'imageSize': imageSize,
+      'imageRadius': imageRadius,
     };
   }
 
@@ -50,6 +56,8 @@ class MapMarker {
     String? snippet,
     String? iconAsset,
     String? imageUrl,
+    double? imageSize,
+    double? imageRadius,
     IconData? iconData,
     Color? color,
     VoidCallback? onTap,
@@ -63,6 +71,8 @@ class MapMarker {
       snippet: snippet ?? this.snippet,
       iconAsset: iconAsset ?? this.iconAsset,
       imageUrl: imageUrl ?? this.imageUrl,
+      imageSize: imageSize ?? this.imageSize,
+      imageRadius: imageRadius ?? this.imageRadius,
       iconData: iconData ?? this.iconData,
       color: color ?? this.color,
       onTap: onTap ?? this.onTap,
