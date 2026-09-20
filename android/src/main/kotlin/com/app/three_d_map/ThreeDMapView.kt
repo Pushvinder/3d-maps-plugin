@@ -199,7 +199,7 @@ class ThreeDMapView(
     private val mapMode = when ((creationParams?.get("mapMode") as? Number)?.toInt()) {
         0, Map3DMode.HYBRID -> Map3DMode.HYBRID
         1, Map3DMode.SATELLITE -> Map3DMode.SATELLITE
-        2 -> Map3DMode.SATELLITE
+        2, Map3DMode.ROADMAP -> Map3DMode.ROADMAP
         else -> Map3DMode.HYBRID
     }
 
@@ -379,6 +379,29 @@ class ThreeDMapView(
                 map.flyCameraTo(flyToOptions)
                 result.success(true)
             }
+            "setTilt" -> {
+                val map = googleMap3D
+                if (map == null) {
+                    result.error("UNAVAILABLE", "GoogleMap3D is not ready yet", null)
+                    return
+                }
+                val targetTilt = (call.argument<Number>("tilt"))?.toDouble() ?: 0.0
+                val durationMs = (call.argument<Number>("durationMs"))?.toLong() ?: 1500L
+                val currentCamera = map.getCamera()
+                if (currentCamera != null) {
+                    val newCamera = Camera(
+                        currentCamera.getCenter(),
+                        currentCamera.getHeading(),
+                        targetTilt,
+                        currentCamera.getRoll(),
+                        currentCamera.getRange()
+                    )
+                    map.flyCameraTo(FlyToOptions(newCamera, durationMs))
+                    result.success(true)
+                } else {
+                    result.error("UNAVAILABLE", "Camera is not available", null)
+                }
+            }
             "addMarker" -> {
                 val map = googleMap3D
                 val params = call.arguments as? Map<String, Any?>
@@ -473,7 +496,20 @@ class ThreeDMapView(
                 }
             }
             "setMapMode" -> {
-                result.success(true)
+                val map = googleMap3D
+                if (map != null) {
+                    val modeInt = (call.argument<Number>("mapMode"))?.toInt() ?: 0
+                    val mode = when (modeInt) {
+                        0, Map3DMode.HYBRID -> Map3DMode.HYBRID
+                        1, Map3DMode.SATELLITE -> Map3DMode.SATELLITE
+                        2, Map3DMode.ROADMAP -> Map3DMode.ROADMAP
+                        else -> Map3DMode.HYBRID
+                    }
+                    map.setMapMode(mode)
+                    result.success(true)
+                } else {
+                    result.error("UNAVAILABLE", "GoogleMap3D is not ready yet", null)
+                }
             }
             else -> result.notImplemented()
         }

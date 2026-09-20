@@ -19,6 +19,7 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
   ThreeDMapController? _mapController;
   MapMarker? _selectedMarker;
   final List<MapMarker> _markers = [];
+  bool _is2DMode = false;
 
   @override
   void initState() {
@@ -104,13 +105,13 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       _selectedMarker = marker;
     });
 
-    // Fly camera in 3D to user location
+    // Fly camera in 3D or 2D to user location
     _mapController?.flyTo(
       lat: marker.latitude,
       lng: marker.longitude,
       alt: marker.altitude > 0 ? marker.altitude + 250 : 600.0,
       heading: 0.0,
-      tilt: 60.0,
+      tilt: _is2DMode ? 0.0 : 60.0,
       range: 1200.0,
       durationMs: 2500,
     );
@@ -150,6 +151,20 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
     );
   }
 
+  void _toggle2D3DMode() {
+    setState(() {
+      _is2DMode = !_is2DMode;
+    });
+    _mapController?.setNormalMapMode(_is2DMode);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_is2DMode ? 'Switched to Normal 2D Google Map' : 'Switched to 3D Photorealistic Map'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,13 +173,39 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
+          // 2D / 3D Mode Toggle Button in AppBar
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _is2DMode ? Colors.amber : Colors.indigo.shade800,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                elevation: 2,
+              ),
+              onPressed: _toggle2D3DMode,
+              icon: Icon(
+                _is2DMode ? Icons.map : Icons.view_in_ar,
+                size: 18,
+              ),
+              label: Text(
+                _is2DMode ? '2D' : '3D',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Reset Camera',
             onPressed: () {
               setState(() {
                 _selectedMarker = null;
+                _is2DMode = false;
               });
+              _mapController?.setNormalMapMode(false);
               _mapController?.flyTo(
                 lat: 38.544012,
                 lng: -107.670428,
@@ -196,7 +237,7 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
             onMapReady: () {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('3D Map Ready! Tap a user pic above to fly to their location.')),
+                  const SnackBar(content: Text('3D Map Ready! Tap 2D/3D button to switch perspectives.')),
                 );
               }
             },
@@ -252,7 +293,25 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
             ),
           ),
 
-          // 3. Bottom Detail Card for Selected User Profile
+          // 3. Floating 2D / 3D Map Toggle Button
+          Positioned(
+            right: 16,
+            bottom: _selectedMarker != null ? 180 : 28,
+            child: FloatingActionButton.extended(
+              heroTag: 'toggle_2d_3d',
+              backgroundColor: _is2DMode ? Colors.amber.shade800 : Colors.indigo,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              onPressed: _toggle2D3DMode,
+              icon: Icon(_is2DMode ? Icons.map_outlined : Icons.view_in_ar),
+              label: Text(
+                _is2DMode ? '2D View' : '3D View',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+
+          // 4. Bottom Detail Card for Selected User Profile
           if (_selectedMarker != null)
             Positioned(
               left: 16,

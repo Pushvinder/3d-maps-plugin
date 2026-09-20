@@ -1,10 +1,8 @@
 enum Map3DMode {
-  hybrid(1),
-  satellite(2);
+  hybrid(0),
+  satellite(1),
+  roadmap(2);
 
   final int value;
   const Map3DMode(this.value);
 }
-
-
-

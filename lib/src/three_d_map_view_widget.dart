@@ -61,7 +61,8 @@ class _ThreeDMapViewWidgetState extends State<ThreeDMapViewWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (defaultTargetPlatform != TargetPlatform.android) {
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
       return Center(
         child: Text(
           '$defaultTargetPlatform is not supported by three_d_map.',
@@ -82,6 +83,15 @@ class _ThreeDMapViewWidgetState extends State<ThreeDMapViewWidget> {
       if (widget.imageSize != null) 'imageSize': widget.imageSize,
       if (widget.imageRadius != null) 'imageRadius': widget.imageRadius,
     };
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return UiKitView(
+        viewType: 'com.app.three_d_map/view',
+        onPlatformViewCreated: _onPlatformViewCreated,
+        creationParams: creationParams,
+        creationParamsCodec: const StandardMessageCodec(),
+      );
+    }
 
     return PlatformViewLink(
       viewType: 'com.app.three_d_map/view',

@@ -53,6 +53,29 @@ class ThreeDMapController {
     );
   }
 
+  /// Animate camera tilt angle (e.g. 0.0 for 2D top-down view or 63.0 for 3D perspective view).
+  Future<void> setTilt(double tilt, {int durationMs = 1500}) async {
+    try {
+      await channel.invokeMethod('setTilt', {
+        'tilt': tilt,
+        'durationMs': durationMs,
+      });
+    } catch (e) {
+      debugPrint('ThreeDMapController.setTilt error: $e');
+    }
+  }
+
+  /// Toggle between 2D (0.0° tilt) and 3D (63.0° tilt) map perspective.
+  Future<void> toggle2D3D({required bool is2D, int durationMs = 1500}) async {
+    await setTilt(is2D ? 0.0 : 63.0, durationMs: durationMs);
+  }
+
+  /// Switch between Normal 2D Roadmap Google Map (roadmap mode at 0.0° tilt) and 3D Photorealistic Map (hybrid mode at 63.0° tilt).
+  Future<void> setNormalMapMode(bool isNormalMap, {int durationMs = 1500}) async {
+    await setMapMode(isNormalMap ? Map3DMode.roadmap : Map3DMode.hybrid);
+    await setTilt(isNormalMap ? 0.0 : 63.0, durationMs: durationMs);
+  }
+
   /// Search for a location or landmark by query name.
   Future<PlaceLocation?> searchLocation(String query) async {
     try {
@@ -68,7 +91,7 @@ class ThreeDMapController {
     return null;
   }
 
-  /// Set Map 3D Mode ([Map3DMode.hybrid] or [Map3DMode.satellite]).
+  /// Set Map 3D Mode ([Map3DMode.hybrid], [Map3DMode.satellite], or [Map3DMode.roadmap]).
   Future<void> setMapMode(Map3DMode mode) async {
     try {
       await channel.invokeMethod('setMapMode', {
