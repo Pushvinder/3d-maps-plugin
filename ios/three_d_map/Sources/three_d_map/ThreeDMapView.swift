@@ -114,6 +114,7 @@ public class ThreeDMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
 
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleMapTap(_:)))
         tapGesture.cancelsTouchesInView = false
+        tapGesture.delegate = self
         self.mapView.addGestureRecognizer(tapGesture)
 
         self.channel.setMethodCallHandler { [weak self] (call, result) in
@@ -158,7 +159,17 @@ public class ThreeDMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
     @objc private func handleMapTap(_ gesture: UITapGestureRecognizer) {
         let point = gesture.location(in: mapView)
         let hitView = mapView.hitTest(point, with: nil)
-        if hitView is MKAnnotationView || hitView?.superview is MKAnnotationView {
+
+        if let annotationView = (hitView as? MKAnnotationView) ?? (hitView?.superview as? MKAnnotationView),
+           let annotation = annotationView.annotation as? CustomMapAnnotation {
+            channel.invokeMethod("onMarkerClick", arguments: [
+                "markerId": annotation.id,
+                "lat": annotation.coordinate.latitude,
+                "lng": annotation.coordinate.longitude,
+                "alt": annotation.altitude,
+                "title": (annotation.title as Any),
+                "snippet": (annotation.snippet as Any)
+            ])
             return
         }
 
@@ -476,9 +487,10 @@ public class ThreeDMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
 
         if annotationView == nil {
             annotationView = MKAnnotationView(annotation: customAnnotation, reuseIdentifier: identifier)
-            annotationView?.canShowCallout = true
+            annotationView?.canShowCallout = false
         } else {
             annotationView?.annotation = customAnnotation
+            annotationView?.canShowCallout = false
         }
 
         if let img = customAnnotation.image {
@@ -491,6 +503,31 @@ public class ThreeDMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
         return annotationView
     }
 
+    private func notifyCameraMove() {
+        let camera = mapView.camera
+        let center = camera.centerCoordinate
+        channel.invokeMethod("onCameraMove", arguments: [
+            "lat": center.latitude,
+            "lng": center.longitude,
+            "alt": 0.0,
+            "heading": camera.heading,
+            "tilt": Double(camera.pitch),
+            "range": camera.centerCoordinateDistance
+        ])
+    }
+
+    public func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
+        notifyCameraMove()
+    }
+
+    public func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+        notifyCameraMove()
+    }
+
+    public func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        notifyCameraMove()
+    }
+
     public func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
         guard let annotation = view.annotation as? CustomMapAnnotation else { return }
         channel.invokeMethod("onMarkerClick", arguments: [
@@ -501,5 +538,14 @@ public class ThreeDMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
             "title": (annotation.title as Any),
             "snippet": (annotation.snippet as Any)
         ])
+    }
+}
+
+extension ThreeDMapView: UIGestureRecognizerDelegate {
+    public func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        return true
     }
 }

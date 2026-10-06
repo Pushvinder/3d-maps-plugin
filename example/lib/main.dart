@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:three_d_map/three_d_map.dart';
+import 'package:flutter_3d_map/flutter_3d_map.dart';
 
+/// Entry point for the 3D Map Example application.
 void main() {
   runApp(const MaterialApp(
     home: ThreeDMapExampleScreen(),
@@ -8,6 +9,12 @@ void main() {
   ));
 }
 
+/// Main example screen demonstrating photorealistic 3D map features:
+/// - Interactive custom image markers for user profiles
+/// - Continuous real-time camera movement tracking (Lat, Lng, Range, Tilt, Heading)
+/// - Perspective toggling between 2D top-down view and 3D 60° view
+/// - Dynamic map mode selection (Hybrid, Satellite, Roadmap)
+/// - Marker tap fly-to animations and profile detail cards
 class ThreeDMapExampleScreen extends StatefulWidget {
   const ThreeDMapExampleScreen({super.key});
 
@@ -16,10 +23,35 @@ class ThreeDMapExampleScreen extends StatefulWidget {
 }
 
 class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
+  // ===========================================================================
+  // Step 1: State Variables & Map Controller Setup
+  // ===========================================================================
+
+  /// Controller used to invoke native 3D map camera animations and marker methods.
   ThreeDMapController? _mapController;
+
+  /// Currently selected user marker profile for displaying detail overlay.
   MapMarker? _selectedMarker;
+
+  /// List of active user profile markers on the 3D map.
   final List<MapMarker> _markers = [];
+
+  /// Flag tracking whether current view perspective is 2D (0.0° tilt) or 3D (60.0° tilt).
   bool _is2DMode = false;
+
+  /// Active 3D map configuration mode (Hybrid, Satellite, or Roadmap).
+  Map3DMode _currentMapMode = Map3DMode.hybrid;
+
+  // Real-time camera state updated continuously via onCameraMove callback
+  double? _cameraLat;
+  double? _cameraLng;
+  double? _cameraRange;
+  double? _cameraHeading;
+  double? _cameraTilt;
+
+  // ===========================================================================
+  // Step 2: Lifecycle & User Marker Initialization
+  // ===========================================================================
 
   @override
   void initState() {
@@ -27,15 +59,16 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
     _initUserMarkers();
   }
 
+  /// Initializes default user profiles around Eiffel Tower with custom coordinates, circular image styling, and colors.
   void _initUserMarkers() {
     final userProfiles = [
       MapMarker(
         id: 'user_1',
-        latitude: 38.5540,
-        longitude: -107.6804,
-        altitude: 2450.0,
+        latitude: 48.8584,
+        longitude: 2.2945,
+        altitude: 350.0,
         title: 'Alice Johnson',
-        snippet: 'North Peak • Travel Blogger',
+        snippet: 'Eiffel Tower Summit • Travel Blogger',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
         imageSize: 60,
         imageRadius: 30,
@@ -43,11 +76,11 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       ),
       MapMarker(
         id: 'user_2',
-        latitude: 38.5340,
-        longitude: -107.6604,
-        altitude: 2400.0,
+        latitude: 48.8558,
+        longitude: 2.2980,
+        altitude: 50.0,
         title: 'Bob Smith',
-        snippet: 'South Ridge • Software Engineer',
+        snippet: 'Champ de Mars Park • Software Engineer',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
         imageSize: 60,
         imageRadius: 30,
@@ -55,11 +88,11 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       ),
       MapMarker(
         id: 'user_3',
-        latitude: 38.5600,
-        longitude: -107.6500,
-        altitude: 2500.0,
+        latitude: 48.8616,
+        longitude: 2.2893,
+        altitude: 75.0,
         title: 'Priya Sharma',
-        snippet: 'East Valley • Architect',
+        snippet: 'Trocadéro Overlook • Architect',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
         imageSize: 60,
         imageRadius: 30,
@@ -67,11 +100,11 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       ),
       MapMarker(
         id: 'user_4',
-        latitude: 38.5200,
-        longitude: -107.6900,
-        altitude: 2380.0,
+        latitude: 48.8598,
+        longitude: 2.2930,
+        altitude: 40.0,
         title: 'Kenji Sato',
-        snippet: 'West Canyon • Photographer',
+        snippet: 'Seine River Quay • Photographer',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
         imageSize: 60,
         imageRadius: 30,
@@ -79,11 +112,11 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       ),
       MapMarker(
         id: 'user_5',
-        latitude: 38.5440,
-        longitude: -107.6704,
-        altitude: 2427.6,
+        latitude: 48.8570,
+        longitude: 2.2910,
+        altitude: 60.0,
         title: 'Carlos Garcia',
-        snippet: 'Center Overlook • Adventurer',
+        snippet: 'Gustave Eiffel Overlook • Adventurer',
         imageUrl: 'https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png',
         imageSize: 60,
         imageRadius: 30,
@@ -94,18 +127,24 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
     _markers.addAll(userProfiles);
   }
 
+  // ===========================================================================
+  // Step 3: Map Event Handlers & Interactions
+  // ===========================================================================
+
+  /// Callback invoked when the native platform view controller is instantiated.
   void _onMapCreated(ThreeDMapController controller) {
     setState(() {
       _mapController = controller;
     });
   }
 
+  /// Handles marker tap: selects user marker and flies camera smoothly to location.
   void _handleMarkerTap(MapMarker marker) {
     setState(() {
       _selectedMarker = marker;
     });
 
-    // Fly camera in 3D or 2D to user location
+    // Animate camera flight in 3D or 2D mode to the tapped marker
     _mapController?.flyTo(
       lat: marker.latitude,
       lng: marker.longitude,
@@ -125,6 +164,7 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
     );
   }
 
+  /// Adds a new custom user profile marker dynamically at clicked map coordinates.
   void _addCustomUserMarker(double lat, double lng, double alt) {
     final newIndex = _markers.length + 1;
     final newMarker = MapMarker(
@@ -151,6 +191,11 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
     );
   }
 
+  // ===========================================================================
+  // Step 4: Perspective & Map Mode Toggles
+  // ===========================================================================
+
+  /// Toggles camera perspective between 2D (0.0° tilt) and 3D (60.0° tilt).
   void _toggle2D3DMode() {
     setState(() {
       _is2DMode = !_is2DMode;
@@ -165,15 +210,73 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
     );
   }
 
+  /// Switches active map mode (Hybrid, Satellite, or Roadmap).
+  void _changeMapMode(Map3DMode mode) {
+    setState(() {
+      _currentMapMode = mode;
+    });
+    _mapController?.setMapMode(mode);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Map Mode: ${mode.name.toUpperCase()}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // Step 5: User Interface Construction
+  // ===========================================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('3D User Map - 5 User Profiles'),
+        title: const Text('Flutter 3D Map'),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
-          // 2D / 3D Mode Toggle Button in AppBar
+          // Popup menu for switching Map Modes (Hybrid, Satellite, Roadmap)
+          PopupMenuButton<Map3DMode>(
+            icon: const Icon(Icons.layers),
+            tooltip: 'Select Map Mode',
+            onSelected: _changeMapMode,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: Map3DMode.hybrid,
+                child: Row(
+                  children: [
+                    Icon(Icons.layers, color: Colors.indigo),
+                    SizedBox(width: 8),
+                    Text('Hybrid Mode'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: Map3DMode.satellite,
+                child: Row(
+                  children: [
+                    Icon(Icons.satellite_alt, color: Colors.indigo),
+                    SizedBox(width: 8),
+                    Text('Satellite Mode'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: Map3DMode.roadmap,
+                child: Row(
+                  children: [
+                    Icon(Icons.map, color: Colors.indigo),
+                    SizedBox(width: 8),
+                    Text('Roadmap Mode'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // 2D / 3D Mode Toggle Button
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
             child: ElevatedButton.icon(
@@ -197,6 +300,8 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
               ),
             ),
           ),
+
+          // Camera Reset Action Button
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Reset Camera',
@@ -207,12 +312,12 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
               });
               _mapController?.setNormalMapMode(false);
               _mapController?.flyTo(
-                lat: 38.544012,
-                lng: -107.670428,
-                alt: 2427.6,
-                heading: 310.0,
-                tilt: 63.0,
-                range: 8266.0,
+                lat: 48.8584,
+                lng: 2.2945,
+                alt: 324.0,
+                heading: 140.0,
+                tilt: 65.0,
+                range: 1000.0,
                 durationMs: 2000,
               );
             },
@@ -221,23 +326,34 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
       ),
       body: Stack(
         children: [
-          // 1. Native 3D Map with Geographic Projection Overlay
+          // -------------------------------------------------------------------
+          // Layer 1: Native Photorealistic 3D Map View
+          // -------------------------------------------------------------------
           ThreeDMapViewWidget(
-            initialLat: 38.544012,
-            initialLng: -107.670428,
-            initialAlt: 2427.6,
-            heading: 310.0,
-            tilt: 63.0,
-            range: 8266.0,
-            mapMode: Map3DMode.hybrid,
+            initialLat: 48.8584,
+            initialLng: 2.2945,
+            initialAlt: 324.0,
+            heading: 140.0,
+            tilt: 65.0,
+            range: 1000.0,
+            mapMode: _currentMapMode,
             showSearchBar: false,
             markers: _markers,
             onMapCreated: _onMapCreated,
             onMarkerTap: _handleMarkerTap,
+            onCameraMove: (lat, lng, range, heading, tilt) {
+              setState(() {
+                _cameraLat = lat;
+                _cameraLng = lng;
+                _cameraRange = range;
+                _cameraHeading = heading;
+                _cameraTilt = tilt;
+              });
+            },
             onMapReady: () {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('3D Map Ready! Tap 2D/3D button to switch perspectives.')),
+                  const SnackBar(content: Text('3D Map Ready! Tap 2D/3D button or chips to select user profiles.')),
                 );
               }
             },
@@ -256,62 +372,63 @@ class _ThreeDMapExampleScreenState extends State<ThreeDMapExampleScreen> {
             },
           ),
 
-          // 2. Top Row: Quick User Selector Chips
-          Positioned(
-            top: 12,
-            left: 12,
-            right: 12,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _markers.map((marker) {
-                  final isSelected = _selectedMarker?.id == marker.id;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ActionChip(
-                      avatar: CircleAvatar(
-                        radius: 12,
-                        backgroundImage: marker.imageUrl != null
-                            ? NetworkImage(marker.imageUrl!)
-                            : null,
-                        child: marker.imageUrl == null
-                            ? Icon(Icons.person, size: 14, color: marker.color)
-                            : null,
-                      ),
-                      label: Text(marker.title ?? marker.id),
-                      backgroundColor: isSelected ? Colors.indigo : Colors.white,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      elevation: 4,
-                      onPressed: () => _handleMarkerTap(marker),
+          // -------------------------------------------------------------------
+          // Layer 2: Real-time Camera Movement Status Overlay Bar
+          // -------------------------------------------------------------------
+          if (_cameraLat != null && _cameraLng != null)
+            Positioned(
+              top: 12,
+              left: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Lat: ${_cameraLat!.toStringAsFixed(4)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Lng: ${_cameraLng!.toStringAsFixed(4)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Range: ${_cameraRange?.toStringAsFixed(0)}m',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Tilt: ${_cameraTilt?.toStringAsFixed(0)}°',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Heading: ${_cameraHeading?.toStringAsFixed(0)}°',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // 3. Floating 2D / 3D Map Toggle Button
-          Positioned(
-            right: 16,
-            bottom: _selectedMarker != null ? 180 : 28,
-            child: FloatingActionButton.extended(
-              heroTag: 'toggle_2d_3d',
-              backgroundColor: _is2DMode ? Colors.amber.shade800 : Colors.indigo,
-              foregroundColor: Colors.white,
-              elevation: 6,
-              onPressed: _toggle2D3DMode,
-              icon: Icon(_is2DMode ? Icons.map_outlined : Icons.view_in_ar),
-              label: Text(
-                _is2DMode ? '2D View' : '3D View',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-
-          // 4. Bottom Detail Card for Selected User Profile
+          // -------------------------------------------------------------------
+          // Layer 3: Bottom Detail Card for Selected User Profile
+          // -------------------------------------------------------------------
           if (_selectedMarker != null)
             Positioned(
               left: 16,

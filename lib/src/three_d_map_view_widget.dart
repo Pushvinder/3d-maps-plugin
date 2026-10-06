@@ -30,6 +30,7 @@ class ThreeDMapViewWidget extends StatefulWidget {
   final VoidCallback? onMapReady;
   final MapClickCallback? onMapClick;
   final MarkerTapCallback? onMarkerTap;
+  final CameraMoveCallback? onCameraMove;
   final MapErrorCallback? onError;
 
   const ThreeDMapViewWidget({
@@ -49,6 +50,7 @@ class ThreeDMapViewWidget extends StatefulWidget {
     this.onMapReady,
     this.onMapClick,
     this.onMarkerTap,
+    this.onCameraMove,
     this.onError,
   });
 
@@ -84,10 +86,17 @@ class _ThreeDMapViewWidgetState extends State<ThreeDMapViewWidget> {
       if (widget.imageRadius != null) 'imageRadius': widget.imageRadius,
     };
 
+    final gestureRecognizers = <Factory<OneSequenceGestureRecognizer>>{
+      Factory<OneSequenceGestureRecognizer>(
+        () => EagerGestureRecognizer(),
+      ),
+    };
+
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return UiKitView(
         viewType: 'com.app.three_d_map/view',
         onPlatformViewCreated: _onPlatformViewCreated,
+        gestureRecognizers: gestureRecognizers,
         creationParams: creationParams,
         creationParamsCodec: const StandardMessageCodec(),
       );
@@ -98,7 +107,7 @@ class _ThreeDMapViewWidgetState extends State<ThreeDMapViewWidget> {
       surfaceFactory: (context, controller) {
         return AndroidViewSurface(
           controller: controller as AndroidViewController,
-          gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+          gestureRecognizers: gestureRecognizers,
           hitTestBehavior: PlatformViewHitTestBehavior.opaque,
         );
       },
@@ -174,6 +183,20 @@ class _ThreeDMapViewWidgetState extends State<ThreeDMapViewWidget> {
           final args = call.arguments as Map?;
           if (args != null && widget.onError != null) {
             widget.onError!(args['error'] as String? ?? 'Unknown error');
+          }
+          break;
+        case 'onCameraMove':
+          final args = call.arguments as Map?;
+          if (args != null) {
+            final lat = (args['lat'] as num).toDouble();
+            final lng = (args['lng'] as num).toDouble();
+            final range = (args['range'] as num).toDouble();
+            final heading = (args['heading'] as num).toDouble();
+            final tilt = (args['tilt'] as num).toDouble();
+            if (widget.onCameraMove != null) {
+              widget.onCameraMove!(lat, lng, range, heading, tilt);
+            }
+            _controller?.onCameraMoveListener?.call(lat, lng, range, heading, tilt);
           }
           break;
       }

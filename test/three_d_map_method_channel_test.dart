@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:three_d_map/three_d_map_method_channel.dart';
+import 'package:flutter_3d_map/three_d_map_method_channel.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

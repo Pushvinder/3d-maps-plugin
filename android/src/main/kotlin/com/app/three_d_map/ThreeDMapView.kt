@@ -10,6 +10,7 @@ import android.graphics.Outline
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -32,6 +33,7 @@ import androidx.savedstate.findViewTreeSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.app.three_d_map.theme.Google3dMapTheme
 import com.google.android.gms.maps3d.GoogleMap3D
+import com.google.android.gms.maps3d.OnCameraChangedListener
 import com.google.android.gms.maps3d.Popover
 import com.google.android.gms.maps3d.model.Camera
 import com.google.android.gms.maps3d.model.FlyToOptions
@@ -206,6 +208,19 @@ class ThreeDMapView(
     init {
         channel.setMethodCallHandler(this)
 
+        val originalHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler(Thread.UncaughtExceptionHandler { thread: Thread, throwable: Throwable ->
+            val msg = (throwable as java.lang.Throwable).localizedMessage ?: ""
+            if (msg.contains("onAuthenticationFailed") || msg.contains("MapConfigs") || thread.name.contains("punchpool")) {
+                Log.e("ThreeDMapView", "Google Maps 3D Auth Exception caught safely", throwable)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    channel.invokeMethod("onError", mapOf("error" to "Google Maps 3D Authentication Failed. Please check your API Key in AndroidManifest.xml."))
+                }
+            } else {
+                originalHandler?.uncaughtException(thread, throwable)
+            }
+        })
+
         composeView.setViewCompositionStrategy(
             ViewCompositionStrategy.DisposeOnDetachedFromWindow
         )
@@ -220,6 +235,17 @@ class ThreeDMapView(
             override fun onViewDetachedFromWindow(v: View) {}
         })
 
+        composeView.setOnTouchListener { _: View, _: MotionEvent ->
+            try {
+                googleMap3D?.getCamera()?.let { camera ->
+                    notifyCameraMove(camera)
+                }
+            } catch (e: Throwable) {
+                Log.e("ThreeDMapView", "Error handling touch event", e)
+            }
+            false
+        }
+
         composeView.setContent {
             Google3dMapTheme {
                 Map3D(
@@ -232,6 +258,15 @@ class ThreeDMapView(
                     mapMode = mapMode,
                     onMapReady = { map ->
                         this@ThreeDMapView.googleMap3D = map
+                        try {
+                            map.setCameraChangedListener(object : OnCameraChangedListener {
+                                override fun onCameraChanged(camera: Camera) {
+                                    notifyCameraMove(camera)
+                                }
+                            })
+                        } catch (e: Exception) {
+                            Log.e("ThreeDMapView", "Error setting camera change listener", e)
+                        }
                         channel.invokeMethod("onMapReady", null)
                     },
                     onError = { error ->
@@ -243,6 +278,43 @@ class ThreeDMapView(
     }
 
     override fun getView(): View = composeView
+
+    private var lastCameraState: String = ""
+
+    private fun notifyCameraMove(camera: Camera) {
+        try {
+            val center = camera.getCenter() ?: return
+            val lat = center.latitude
+            val lng = center.longitude
+            val alt = center.altitude
+            val headingVal = camera.getHeading()?.toDouble() ?: 0.0
+            val tiltVal = camera.getTilt()?.toDouble() ?: 0.0
+            val rangeVal = camera.getRange()?.toDouble() ?: 0.0
+
+            val stateKey = "$lat,$lng,$alt,$headingVal,$tiltVal,$rangeVal"
+            if (stateKey == lastCameraState) return
+            lastCameraState = stateKey
+
+            val params = mapOf(
+                "lat" to lat,
+                "lng" to lng,
+                "alt" to alt,
+                "heading" to headingVal,
+                "tilt" to tiltVal,
+                "range" to rangeVal
+            )
+
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    channel.invokeMethod("onCameraMove", params)
+                } catch (e: Throwable) {
+                    Log.e("ThreeDMapView", "Error invoking onCameraMove", e)
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e("ThreeDMapView", "Error in notifyCameraMove", e)
+        }
+    }
 
     companion object {
         private const val DEFAULT_IMAGE_URL = "https://developers.google.com/static/maps/documentation/maps-3d/android-sdk/images/add-3d-model.png"
@@ -275,7 +347,22 @@ class ThreeDMapView(
                     // Remove existing popover if re-adding with same id
                     popovers3DMap[id]?.remove()
 
-                    val popoverView = createMarkerImageView(context, bitmap, sizeDp, radiusDp)
+                    val onMarkerClickListener = View.OnClickListener {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            channel.invokeMethod(
+                                "onMarkerClick",
+                                mapOf(
+                                    "markerId" to id,
+                                    "lat" to lat,
+                                    "lng" to lng,
+                                    "alt" to alt,
+                                    "title" to title
+                                )
+                            )
+                        }
+                    }
+                    val popoverView = createMarkerImageView(context, bitmap, sizeDp, radiusDp, onMarkerClickListener)
+
                     val popoverStyle = PopoverStyle()
                         .setPadding(0f)
                         .setBackgroundColor(Color.TRANSPARENT)
@@ -328,7 +415,8 @@ class ThreeDMapView(
         context: Context,
         bitmap: Bitmap,
         sizeDp: Double,
-        radiusDp: Double
+        radiusDp: Double,
+        onClickListener: View.OnClickListener? = null
     ): View {
         val density = context.resources.displayMetrics.density
         val sizePx = (sizeDp * density).toInt()
@@ -342,6 +430,9 @@ class ThreeDMapView(
                     outline.setRoundRect(0, 0, view.width, view.height, radiusPx)
                 }
             }
+            if (onClickListener != null) {
+                setOnClickListener(onClickListener)
+            }
         }
 
         val imageView = ImageView(context).apply {
@@ -351,6 +442,9 @@ class ThreeDMapView(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
+            if (onClickListener != null) {
+                setOnClickListener(onClickListener)
+            }
         }
 
         frameLayout.addView(imageView)
