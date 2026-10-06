@@ -1,3 +1,7 @@
+## 1.0.4
+
+* Updated `README.md` image links to use direct raw GitHub URLs for instant rendering on pub.dev and GitHub.
+
 ## 1.0.3
 
 * Updated documentation and image relative paths for pub.dev asset rendering.

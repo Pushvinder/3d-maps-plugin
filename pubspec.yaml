@@ -1,8 +1,8 @@
 name: flutter_3d_map
 description: "A cross-platform Flutter plugin for photorealistic 3D maps on Android and iOS with custom markers, flyTo camera animations, and map mode controls."
-version: 1.0.3
-homepage: https://github.com/pushvindersingh/flutter_3d_map
-repository: https://github.com/pushvindersingh/flutter_3d_map
+version: 1.0.4
+homepage: https://github.com/Pushvinder/3d-maps-plugin
+repository: https://github.com/Pushvinder/3d-maps-plugin
 
 screenshots:
   - description: 'Photorealistic 3D Map view on Android'
