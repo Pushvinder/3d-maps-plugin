@@ -12,7 +12,7 @@ A high-performance, cross-platform Flutter plugin for embedding photorealistic 3
 
 | Android (Google Maps 3D) | iOS (Apple MapKit 3D Elevation) |
 | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/Pushvinder/3d-maps-plugin/refs/heads/main/doc/screenshots/map_3d_demo_android.png?token=GHSAT0AAAAAAEJDCPCQQU3JNBDDU5AJY2WE2WFODFA" width="360" alt="Android 3D Map View"/> | <img src="https://raw.githubusercontent.com/Pushvinder/3d-maps-plugin/refs/heads/main/doc/screenshots/map_3d_demo_ios.png?token=GHSAT0AAAAAAEJDCPCQNZNZIWZACOWRT2Z42WFOD3Q" width="360" alt="iOS 3D Map View"/> |
+| <img src="https://raw.githubusercontent.com/Pushvinder/3d-maps-plugin/refs/heads/main/doc/screenshots/map_3d_demo_android.png" width="360" alt="Android 3D Map View"/> | <img src="https://raw.githubusercontent.com/Pushvinder/3d-maps-plugin/refs/heads/main/doc/screenshots/map_3d_demo_ios.png" width="360" alt="iOS 3D Map View"/> |
 
 ---
 

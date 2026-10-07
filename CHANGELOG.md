@@ -1,3 +1,7 @@
+## 1.0.5
+
+* Updated `README.md` image links to use permanent public raw GitHub URLs.
+
 ## 1.0.4
 
 * Updated `README.md` image links to use direct raw GitHub URLs for instant rendering on pub.dev and GitHub.
